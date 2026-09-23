@@ -1,36 +1,146 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HEALTHINSIGHT
 
-## Getting Started
+> **Tagline:** *"Turn health programme data into actionable insight."*
 
-First, run the development server:
+HealthInsight is a production-quality, full-stack AI-powered health programme and research intelligence platform designed for health NGOs, research organizations, and programme management teams.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## 1. Product Overview
+HealthInsight helps healthcare operations teams turn unstructured reports, evaluation studies, and structured programme datasets into actionable intelligence. The application combines Retrieval-Augmented Generation (RAG) over vector-indexed documents, PII protection preprocessing, deterministic statistical calculations, side-by-side document comparison, exportable report generation, and role-based workspace governance.
+
+> [!IMPORTANT]
+> **Mandatory Health Notice:**
+> *"HealthInsight is a research and programme analysis tool. It does not provide medical diagnosis, treatment recommendations, or clinical advice."*
+
+---
+
+## 2. Problem Statement
+Health NGOs and research organizations collect vast amounts of unstructured evaluation reports (PDFs, DOCXs) and structured CSV datasets. Extracting grounded answers, verifying statistical completion rates, comparing regional interventions, and ensuring patient data privacy (PII) usually requires manual effort. Generic LLMs hallucinate numbers or expose sensitive PII. HealthInsight solves this by using deterministic TS math for numbers and pgvector RAG with strict prompt injection guardrails for text.
+
+---
+
+## 3. Core Features
+1. **Authentication & Multi-Tenant Workspaces:** Secure cookie JWT sessions, workspace isolation, and RBAC roles (`ADMIN`, `PROGRAMME_MANAGER`, `RESEARCHER`, `VIEWER`).
+2. **Document Management & PII Preprocessing:** Upload PDF, DOCX, TXT. Automated PII detection and redaction (`[PERSON]`, `[PHONE]`, `[EMAIL]`, `[ADDRESS]`, `[ID]`).
+3. **Semantic Chunking & pgvector RAG Indexing:** Document pages split into ~500 token chunks and embedded into PostgreSQL via `pgvector`.
+4. **Grounded AI Research Assistant:** Vector similarity retrieval, system prompt injection protection, exact page-level citations, grounding score, and explicit warnings when context is insufficient.
+5. **Structured CSV Dataset Analysis:** Deterministic TypeScript calculation of total participants, average, completion rate %, referral rate %, outcome rate %, min/max, median, missing data %, and time-series trends. AI provides qualitative interpretation only.
+6. **Side-by-Side Document Comparison:** Compare baseline vs. target documents across common findings, metric differences, and outcomes.
+7. **Report Generator:** Synthesize document RAG findings, dataset analytics, and AI insights into structured, exportable PDF reports.
+8. **Audit Trail Logging:** Immutable security log tracking all authentication, uploads, AI queries, report generations, and role changes.
+
+---
+
+## 4. System Architecture
+
+```mermaid
+flowchart TD
+    User([User / Browser]) <--> NextApp[Next.js 16 Web & API Gateway]
+    
+    subgraph Storage & DB
+        Postgres[(PostgreSQL + pgvector)]
+        BlobStorage[Vercel Blob / Storage]
+    end
+    
+    subgraph Core Engines
+        PiiScrubber[PII Redaction Engine]
+        DocParser[Doc Parser & Chunking]
+        StatsEngine[Deterministic TS Stats Engine]
+        VectorStore[pgvector Cosine Search]
+        HfProvider[Hugging Face AI Client]
+    end
+    
+    NextApp --> PiiScrubber
+    NextApp --> DocParser
+    NextApp --> StatsEngine
+    NextApp --> VectorStore
+    VectorStore <--> Postgres
+    NextApp <--> BlobStorage
+    NextApp <--> HfProvider
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 5. Tech Stack
+- **Framework:** Next.js 16.3.6 (App Router, TypeScript, React 19)
+- **Styling:** Tailwind CSS v4, Lucide Icons, Recharts
+- **Database & Vector Search:** PostgreSQL with `pgvector` extension
+- **ORM:** Drizzle ORM (`drizzle-orm`, `drizzle-kit`, `postgres`)
+- **AI Models:** Hugging Face Inference API (`@huggingface/inference`)
+  - Text Model: `mistralai/Mistral-7B-Instruct-v0.3`
+  - Embedding Model: `sentence-transformers/all-MiniLM-L6-v2` (384 float dimensions)
+- **Storage:** Vercel Blob (`@vercel/blob`) with local fallback
+- **Testing:** Vitest
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 6. AI & RAG Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```mermaid
+sequenceDiagram
+    participant User
+    participant NextAPI as Next.js RAG API
+    participant VectorDB as PostgreSQL / pgvector
+    participant HF as Hugging Face LLM
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+    User->>NextAPI: Submit question: "What were the major barriers to care?"
+    NextAPI->>HF: Generate 384d embedding for question
+    HF-->>NextAPI: Vector Embedding Array
+    NextAPI->>VectorDB: Cosine Similarity Search (<->) top 4 chunks
+    VectorDB-->>NextAPI: Relevant document chunks & page numbers
+    NextAPI->>NextAPI: Construct grounded context & check grounding score
+    NextAPI->>HF: Pass [RETRIEVED CONTEXT] + Question + Guardrails Prompt
+    HF-->>NextAPI: Grounded Answer
+    NextAPI-->>User: Answer + Page Citations + Grounding Score Badge
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 7. Security & AI Safety Considerations
+1. **Prompt Injection Protection:** Untrusted text inside retrieved document chunks is wrapped inside `[RETRIEVED DOCUMENT CONTEXT]` blocks. The system prompt instructs the model to ignore any embedded commands inside documents.
+2. **PII Preprocessing:** Personal identifiers are scrubbed before generating embeddings or sending context to LLMs.
+3. **No LLM Arithmetic:** Statistical metrics (totals, completion rate, referral rate, outcome rate) are strictly computed in code.
+4. **Workspace Data Isolation:** Database queries enforce `workspaceId` filtering on all documents, chunks, datasets, and reports.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 8. Local Setup & Environment Variables
+
+### Environment Variables (`.env.example` -> `.env.local`)
+```env
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+JWT_SECRET=healthinsight_super_secret_jwt_key_32bytes_long!
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/healthinsight
+
+HF_API_KEY=your_hugging_face_api_token
+HF_TEXT_MODEL=mistralai/Mistral-7B-Instruct-v0.3
+HF_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+```
+
+### Installation Commands
+```bash
+# 1. Install dependencies
+pnpm install
+
+# 2. Run unit tests
+pnpm test
+
+# 3. Seed synthetic demonstration data
+pnpm dlx tsx src/db/seed-runner.ts
+
+# 4. Start local development server
+pnpm dev
+```
+
+---
+
+## 9. Testing & Build Verification
+- **Unit Tests:** `pnpm test` (Runs Vitest suite for PII scrubber, TS stats engine, chunker, and RBAC).
+- **Production Build:** `pnpm build` (Validates Next.js App Router static and dynamic server routes).
+
+---
+
+## 10. Known Limitations
+- Automated PII detection uses regex patterns for high precision; manual data review before public sharing is recommended.
+- Hugging Face serverless endpoints are subject to provider rate limits. An internal fallback engine provides continuity during API throttling.
