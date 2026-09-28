@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { UserSession } from "@/types/type";
 
 export async function POST(request: Request) {
   try {
@@ -34,11 +35,12 @@ export async function POST(request: Request) {
       console.warn("DB insert fallback during register:", err);
     }
 
-    const sessionPayload = {
+    const sessionPayload: UserSession = {
       userId,
       email: newUser.email,
       name: newUser.name,
       role: newUser.role,
+      avatarUrl: "",
       workspaceId: "wsp-global-001",
       workspaceName: "Global Health Outreach Workspace",
       workspaceSlug: "global-health-outreach",
