@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { SubmitEvent, useState } from "react";
 import { HeartPulse, ShieldCheck, LoaderCircle } from "lucide-react";
 import { cn, getRoleBadgeColor } from "@/utils/utils";
 import { InputGroup } from "@/components/ui/Input";
@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [details, setDetails] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: SubmitEvent) => {
     e.preventDefault();
 
     try {

@@ -20,6 +20,7 @@ export type Member = {
   userId: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
   role: UserRole;
   joinedAt: Date;
 };
@@ -29,7 +30,7 @@ export interface UserSession {
   email: string;
   name: string;
   role: UserRole;
-  avatarUrl?: string | null;
+  avatarUrl: string | null;
   workspaceId: string;
   workspaceName: string;
   workspaceSlug: string;

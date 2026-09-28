@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { SelectGroup } from "@/components/ui/Select";
 import { Member } from "@/types/type";
 import { InputGroup } from "@/components/ui/Input";
+import Image from "next/image";
 
 export default function TeamPage() {
   const [search, setSearch] = useState("");
@@ -153,8 +154,18 @@ const TeamMember = ({ m }: { m: Member }) => {
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/80 p-4">
       <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-sm font-bold text-teal-300">
-          {m.name.charAt(0)}
+        <span className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-slate-800 text-sm font-bold text-teal-300">
+          {m.avatarUrl ? (
+            <Image
+              alt={m.name}
+              src={m.avatarUrl}
+              fill
+              sizes="100%"
+              className="object-cover object-center"
+            />
+          ) : (
+            m.name.charAt(0)
+          )}
         </span>
         <div>
           <h6 className="text-sm font-bold text-slate-100">{m.name}</h6>

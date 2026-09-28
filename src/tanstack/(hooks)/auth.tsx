@@ -99,6 +99,7 @@ const demoData: UserSession = {
   email: "pm@healthinsight.org",
   role: "PROGRAMME_MANAGER",
   workspaceName: "Global Health Outreach Workspace",
+  avatarUrl: "",
   userId: "",
   workspaceId: "",
   workspaceSlug: "",

@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       email: targetUser.email,
       name: targetUser.name,
       role: targetUser.role,
+      avatarUrl: targetUser.avatarUrl,
       workspaceId: "wsp-global-001",
       workspaceName: "Global Health Outreach Workspace",
       workspaceSlug: "global-health-outreach",

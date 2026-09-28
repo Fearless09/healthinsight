@@ -18,6 +18,7 @@ export async function GET() {
         userId: users.id,
         name: users.name,
         email: users.email,
+        avatarUrl: users.avatarUrl,
         role: workspaceMembers.role,
         joinedAt: workspaceMembers.joinedAt,
       })
@@ -39,6 +40,7 @@ export async function GET() {
       name: "Dr. Sarah Jenkins",
       email: "admin@healthinsight.org",
       role: "ADMIN",
+      avatarUrl: "",
       joinedAt: new Date(),
     },
     {
@@ -47,6 +49,7 @@ export async function GET() {
       name: "Alex Rivera",
       email: "pm@healthinsight.org",
       role: "PROGRAMME_MANAGER",
+      avatarUrl: "",
       joinedAt: new Date(),
     },
     {
@@ -55,6 +58,7 @@ export async function GET() {
       name: "Dr. Marcus Vance",
       email: "researcher@healthinsight.org",
       role: "RESEARCHER",
+      avatarUrl: "",
       joinedAt: new Date(),
     },
     {
@@ -63,6 +67,7 @@ export async function GET() {
       name: "Elena Rostova",
       email: "viewer@healthinsight.org",
       role: "VIEWER",
+      avatarUrl: "",
       joinedAt: new Date(),
     },
   ];
