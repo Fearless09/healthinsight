@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { verifySessionToken } from "@/lib/auth";
 
+const SESSION_COOKIE_NAME = "healthinsight_session";
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  const token = request.cookies.get("healthinsight_session")?.value;
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
+
+  console.log({ name: "proxy", pathname, token, session });
 
   const isProtectedPath =
     pathname === "/" ||
@@ -28,7 +32,9 @@ export async function proxy(request: NextRequest) {
     if (pathname !== "/") {
       loginUrl.searchParams.set("redirect", pathname);
     }
-    return NextResponse.redirect(loginUrl);
+    const res = NextResponse.redirect(loginUrl);
+    if (token) res.cookies.delete(SESSION_COOKIE_NAME);
+    return res;
   }
 
   // Redirect authenticated users accessing /login or / to /dashboard
@@ -41,14 +47,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - api/ (API routes handled separately)
-     * - uploads/ (public upload assets)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|api/|uploads/).*)",
+    // skip api, Next internals, uploads, and any path with a file extension
+    "/((?!api|_next/static|_next/image|favicon.ico|uploads|.*\\..*).*)",
   ],
 };

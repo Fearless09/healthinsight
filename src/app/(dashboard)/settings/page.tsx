@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, SubmitEvent } from "react";
+import { useState, useEffect, useRef, SubmitEvent } from "react";
 import {
   Cpu,
   Database,
@@ -13,13 +13,17 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
+  LoaderCircle,
 } from "lucide-react";
 import { InputGroup } from "@/components/ui/Input";
 import { cn, getRole, getRoleBadgeColor } from "@/utils/utils";
 import { useSession, useUpdateProfile } from "@/tanstack/(hooks)/auth";
+import { useDeleteStorage, useUploadStorage } from "@/tanstack/(hooks)/storage";
+import Image from "next/image";
 
 export default function SettingsPage() {
-  const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: session } = useSession();
+
   const { mutateAsync: updateProfileAsync, isPending: updatingProfile } =
     useUpdateProfile();
 
@@ -29,22 +33,14 @@ export default function SettingsPage() {
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
-    avatarUrl: "" as string | null | undefined,
   });
-
-  // Avatar states
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [removeAvatarFlag, setRemoveAvatarFlag] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Status feedback
   const [status, setStatus] = useState({
     error: null as string | null,
     success: null as string | null,
+    saved: true as boolean,
   });
-
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   // AI settings state
   const [aiState, setAiState] = useState({
@@ -66,45 +62,33 @@ export default function SettingsPage() {
 
   const handleChangeProfile = (data: Partial<typeof profile>) => {
     setProfile((prev) => ({ ...prev, ...data }));
+    if (status.saved) handleChangeStatus({ saved: false });
   };
 
   const handleChangeStatus = (data: Partial<typeof status>) => {
     setStatus((prev) => ({ ...prev, ...data }));
+    if (data.success) {
+      setTimeout(
+        () => setStatus({ error: null, success: null, saved: true }),
+        4000,
+      );
+    }
   };
 
   // Sync state when session loads
   useEffect(() => {
     if (!session) return;
-    setProfile((prev) => ({ ...prev, name: session.name || "" }));
-
-    if (!session.avatarUrl) return;
-    setProfile((prev) => ({ ...prev, avatarUrl: session.avatarUrl }));
+    setProfile((prev) => ({ ...prev, name: session.name }));
+    handleChangeStatus({ saved: true });
   }, [session]);
 
-  const handleAvatarChange = (file?: File) => {
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        handleChangeStatus({
-          error: "Profile picture must be smaller than 5MB.",
-        });
-        return;
-      }
-      setAvatarFile(file);
-      handleChangeStatus({ error: null });
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      handleSaveProfile({ avatarUrl: null });
-    }
-  };
+  const handleSaveProfile = async (
+    details: Partial<typeof profile & { avatarUrl: string | null }>,
+  ) => {
+    handleChangeStatus({ error: null, success: null, saved: false });
 
-  const handleSaveProfile = async (details: Partial<typeof profile>) => {
-    handleChangeStatus({ error: null, success: null });
+    const { newPassword, confirmPassword, currentPassword } = details;
 
-    const { confirmPassword, currentPassword, newPassword } = details;
     if (newPassword || confirmPassword || currentPassword) {
       if (!currentPassword) {
         handleChangeStatus({
@@ -134,10 +118,7 @@ export default function SettingsPage() {
       handleChangeProfile({
         confirmPassword: "",
         currentPassword: "",
-        name: "",
       });
-
-      setTimeout(() => handleChangeStatus({ success: null }), 4000);
     } catch (err: any) {
       handleChangeStatus({ error: err.message || "Failed to update profile." });
     }
@@ -157,7 +138,7 @@ export default function SettingsPage() {
       </header>
 
       {/* User Profile Section */}
-      <div className="space-y-6 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-6 shadow-xl">
+      <section className="space-y-6 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-6 shadow-xl">
         <h2 className="flex items-center gap-2 border-b border-slate-800 pb-3 text-sm font-bold text-white">
           <User className="size-4.5 shrink-0 text-teal-400" />
           User Profile & Security Settings
@@ -197,62 +178,7 @@ export default function SettingsPage() {
           className="space-y-6"
         >
           {/* Avatar Upload Sub-section */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="group relative size-20 shrink-0">
-              {avatarPreview ? (
-                <img
-                  src={avatarPreview}
-                  alt="Profile Avatar"
-                  className="size-20 rounded-2xl border border-teal-500/40 object-cover shadow-md"
-                />
-              ) : (
-                <div className="flex size-20 items-center justify-center rounded-2xl border border-slate-700 bg-slate-800/80 text-slate-300">
-                  <User className="size-9" />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-slate-200">
-                Profile Photo
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Upload a picture to personalize your account. Max 5MB (JPG, PNG,
-                WEBP).
-              </p>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    handleAvatarChange(file);
-                  }}
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  id="avatar-input"
-                />
-                <label
-                  htmlFor="avatar-input"
-                  className="transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-slate-600 hover:bg-slate-700/80"
-                >
-                  <Camera className="size-3.5 text-teal-400" />
-                  <span>Upload Picture</span>
-                </label>
-
-                {avatarPreview && (
-                  <button
-                    type="button"
-                    onClick={() => handleAvatarChange()}
-                    className="transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl border border-rose-900/50 bg-rose-950/30 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-900/40"
-                  >
-                    <Trash2 className="size-3.5" />
-                    <span>Remove</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          <AvatarPreviw onError={(error) => handleChangeStatus({ error })} />
 
           <main className="grid grid-cols-1 gap-5 border-t border-slate-800/80 pt-4 sm:grid-cols-2">
             {/* Full Name */}
@@ -273,6 +199,7 @@ export default function SettingsPage() {
               type="email"
               value={session?.email || ""}
               readOnly
+              disabled
               icon
             />
           </main>
@@ -340,9 +267,9 @@ export default function SettingsPage() {
           <div className="flex justify-end border-t border-slate-800 pt-4">
             <button
               type="submit"
-              disabled={updatingProfile}
+              disabled={updatingProfile || status.saved}
               className={cn(
-                "transition-300 flex cursor-pointer items-center gap-2 rounded-xl bg-teal-500 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-teal-600/20 hover:bg-teal-400 disabled:opacity-75",
+                "transition-300 flex cursor-pointer items-center gap-2 rounded-xl bg-teal-500 px-5 py-2.5 text-xs font-bold text-slate-950 shadow-lg shadow-teal-600/20 hover:bg-teal-400 disabled:pointer-events-none disabled:opacity-75",
                 "[&>svg]:size-4 [&>svg]:shrink-0",
               )}
             >
@@ -360,7 +287,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </form>
-      </div>
+      </section>
 
       {/* Hugging Face AI Configuration */}
       <form
@@ -399,6 +326,7 @@ export default function SettingsPage() {
             label="HF Text Generation Model (HF_TEXT_MODEL)"
             value={aiState.textModel}
             onChange={(e) => handleChangeAiState({ textModel: e.target.value })}
+            icon
           />
 
           <InputGroup
@@ -408,6 +336,7 @@ export default function SettingsPage() {
             onChange={(e) =>
               handleChangeAiState({ embeddingModel: e.target.value })
             }
+            icon
           />
         </div>
 
@@ -458,3 +387,129 @@ const config = [
     textColor: "text-blue-400",
   },
 ];
+
+type AvatarPreviwProps = {
+  onError: (msg: string | null) => void;
+};
+const AvatarPreviw = ({ onError }: AvatarPreviwProps) => {
+  const { mutateAsync: updateProfileAsync, isPending: updatingProfile } =
+    useUpdateProfile();
+
+  const { data: session } = useSession();
+  const {
+    data: uploadData,
+    mutateAsync: uploadStorageAsync,
+    isPending: uploading,
+  } = useUploadStorage();
+  const { mutateAsync: deleteAvatarAsync, isPending: deletingAvatar } =
+    useDeleteStorage();
+
+  const avatarUrl = uploadData || session?.avatarUrl;
+
+  const loading = updatingProfile || uploading || deletingAvatar;
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleAvatarChange = async (file?: File) => {
+    if (!file) {
+      if (avatarUrl) await deleteAvatarAsync({ url: avatarUrl });
+      updateProfileAsync({ avatarUrl: "" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      onError("Profile picture must be smaller than 5MB.");
+      return;
+    }
+    if (!session) {
+      onError("Please login to upload an avatar.");
+      return;
+    }
+    onError(null);
+
+    try {
+      const url = await uploadStorageAsync({
+        file,
+        bucket: "avatar",
+        title: `${session.userId}-${Date.now()}-${file.name}`,
+      });
+
+      updateProfileAsync({ avatarUrl: url });
+    } catch (error: any) {
+      onError(error.message || "Failed to upload avatar.");
+    }
+  };
+
+  return (
+    <main className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div
+        className={cn(
+          "group relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-700 bg-slate-800/80 text-slate-300",
+          {
+            "border-teal-500/40 object-cover shadow-md": avatarUrl,
+            "opacity-70": loading,
+          },
+        )}
+      >
+        {!!avatarUrl ? (
+          <Image
+            src={avatarUrl}
+            alt="Profile Avatar"
+            fill
+            sizes="100%"
+            className="size-full"
+          />
+        ) : (
+          <User className="size-9 shrink-0" />
+        )}
+
+        {loading && (
+          <LoaderCircle className="absolute top-1/2 left-1/2 size-9 -translate-1/2 animate-spin stroke-3 text-teal-400" />
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-slate-200">Profile Photo</h3>
+        <p className="text-[11px] text-slate-400">
+          Upload a picture to personalize your account. Max 5MB (JPG, PNG,
+          WEBP).
+        </p>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              handleAvatarChange(file);
+            }}
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            id="avatar-input"
+            disabled={loading}
+          />
+          <label
+            htmlFor="avatar-input"
+            className={cn(
+              "transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-slate-600 hover:bg-slate-700/80",
+              { "opacity-70": loading },
+            )}
+          >
+            <Camera className="size-3.5 shrink-0 text-teal-400" />
+            <span>Upload Picture</span>
+          </label>
+
+          {!!avatarUrl && (
+            <button
+              type="button"
+              onClick={() => handleAvatarChange()}
+              className="transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl border border-rose-900/50 bg-rose-950/30 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-900/40 disabled:opacity-70"
+              disabled={loading}
+            >
+              <Trash2 className="size-3.5 shrink-0" />
+              <span>Remove</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+};
