@@ -1,226 +1,276 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   FileSpreadsheet,
   Plus,
   Printer,
-  Download,
-  CheckCircle2,
   Calendar,
   User,
-  ShieldCheck,
-  FileText,
-} from 'lucide-react';
+  Trash,
+  LoaderCircle,
+} from "lucide-react";
+import {
+  useDeleteReport,
+  useGenerateReport,
+  useReport,
+} from "@/tanstack/(hooks)/report";
+import { Report } from "@/db/schema";
+import { cn } from "@/utils/utils";
+import { InputGroup } from "@/components/ui/Input";
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState<any[]>([]);
-  const [selectedReport, setSelectedReport] = useState<any | null>(null);
-  const [title, setTitle] = useState('');
-  const [generating, setGenerating] = useState(false);
+  const { data: reportsData } = useReport();
+  const reports = reportsData || [];
+
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showModal, setShowModal] = useState(false);
-
-  const fetchReports = () => {
-    fetch('/api/reports')
-      .then((res) => res.json())
-      .then((data) => {
-        setReports(data.reports || []);
-        if (data.reports && data.reports.length > 0) {
-          setSelectedReport(data.reports[0]);
-        }
-      });
-  };
-
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const handleGenerateReport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title) return;
-    setGenerating(true);
-
-    try {
-      const res = await fetch('/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: 'Custom Programme Evaluation Report' }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Generation failed');
-
-      alert('Programme Report generated successfully!');
-      setShowModal(false);
-      setTitle('');
-      fetchReports();
-    } catch (err: any) {
-      alert(err.message || 'Report generation failed');
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   const handlePrintPdf = () => {
     window.print();
   };
 
+  useEffect(() => {
+    if (reports.length === 0) return;
+    setSelectedReport(reports[0]);
+  }, [reports]);
+
   return (
-    <div className="space-y-6">
+    <section aria-label="reports" className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Programme Report Generator</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Synthesize document RAG findings, dataset analytics, and research insights into structured exportable reports.
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">
+            Programme Report Generator
+          </h1>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Synthesize document RAG findings, dataset analytics, and research
+            insights into structured exportable reports.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold text-xs shadow-lg shadow-teal-600/20 transition-all"
+            className="transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl bg-teal-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg shadow-teal-600/20 hover:bg-teal-500"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="size-4 shrink-0" />
             <span>Generate New Report</span>
           </button>
+
           <button
             onClick={handlePrintPdf}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold text-xs transition-all"
+            className="transition-300 flex cursor-pointer items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
           >
-            <Printer className="w-3.5 h-3.5 text-teal-400" />
+            <Printer className="size-3.5 shrink-0 text-teal-400" />
             <span>Export PDF</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <section className="relative grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         {/* Reports Navigation Sidebar */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+        <main className="space-y-3 lg:sticky lg:top-18">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-white">
+            <FileSpreadsheet className="size-4 shrink-0 text-teal-400" />
             Generated Reports ({reports.length})
           </h2>
 
           <div className="space-y-2">
-            {reports.map((rep) => {
-              const isSelected = selectedReport?.id === rep.id;
-              return (
-                <div
-                  key={rep.id}
-                  onClick={() => setSelectedReport(rep)}
-                  className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-teal-950/20 border-teal-500/40 shadow-sm'
-                      : 'bg-[#0f172a]/90 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="text-xs font-bold text-slate-100">{rep.title}</div>
-                  <div className="text-[10px] text-slate-400 mt-1 flex items-center gap-3">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-500" />
-                      {new Date(rep.createdAt).toLocaleDateString()}
-                    </span>
-                    <span className="text-teal-400 font-medium">Ready</span>
-                  </div>
-                </div>
-              );
-            })}
+            {reports.map((rep) => (
+              <ReportBar
+                key={rep.id}
+                rep={rep}
+                isSelected={selectedReport?.id === rep.id}
+                onSelect={() => setSelectedReport(rep)}
+              />
+            ))}
           </div>
-        </div>
+        </main>
 
         {/* Selected Report Interactive Preview Document */}
-        <div className="lg:col-span-2 p-8 rounded-2xl bg-[#0f172a]/90 border border-slate-800 space-y-6 shadow-xl print:p-0 print:bg-white print:text-black">
+        <main className="space-y-6 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-8 shadow-xl lg:col-span-2 print:bg-white print:p-0 print:text-black">
           {selectedReport ? (
             <>
               {/* Document Header */}
-              <div className="border-b border-slate-800 pb-4 space-y-2">
-                <div className="inline-block px-2.5 py-0.5 rounded bg-teal-500/10 border border-teal-500/30 text-teal-300 text-[10px] font-extrabold uppercase">
+              <div className="space-y-2 border-b border-slate-800 pb-4">
+                <span className="inline-block rounded border border-teal-500/30 bg-teal-500/10 px-2.5 py-0.5 text-[10px] font-extrabold text-teal-300 uppercase">
                   HEALTHINSIGHT PROGRAMME INTELLIGENCE REPORT
-                </div>
-                <h2 className="text-xl font-black text-white">{selectedReport.title}</h2>
-                <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                </span>
+                <h2 className="text-xl font-black text-white">
+                  {selectedReport.title}
+                </h2>
+                <div
+                  className={cn(
+                    "flex flex-wrap items-center gap-4 text-xs text-slate-400",
+                    "[&_svg]:size-3.5 [&_svg]:text-teal-400",
+                  )}
+                >
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-teal-400" /> Date: {new Date(selectedReport.createdAt).toLocaleDateString()}
+                    <Calendar /> Date:{" "}
+                    {new Date(selectedReport.createdAt).toLocaleDateString()}
                   </span>
                   <span className="flex items-center gap-1">
-                    <User className="w-3.5 h-3.5 text-teal-400" /> Author: Alex Rivera (Programme Manager)
+                    <User /> Author: Alex Rivera (Programme Manager)
                   </span>
                   <span>Sources: 3 Documents, 1 CSV Dataset</span>
                 </div>
               </div>
 
               {/* Mandatory AI Disclosure & Disclaimer */}
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                <div>
-                  <strong>AI Assistance Disclosure:</strong> Report content was assembled with Hugging Face LLM assistance grounded in verified workspace data.
-                </div>
-                <div className="text-teal-400/90">
-                  <strong>Mandatory Disclaimer:</strong> HealthInsight is a research and programme analysis tool. It does not provide medical diagnosis, treatment recommendations, or clinical advice.
-                </div>
+              <div className="space-y-1 rounded-xl border border-slate-800/80 bg-slate-900/90 p-3 text-[11px] text-slate-400">
+                <p>
+                  <strong>AI Assistance Disclosure:</strong> Report content was
+                  assembled with Hugging Face LLM assistance grounded in
+                  verified workspace data.
+                </p>
+                <p className="text-teal-400/90">
+                  <strong>Mandatory Disclaimer:</strong> HealthInsight is a
+                  research and programme analysis tool. It does not provide
+                  medical diagnosis, treatment recommendations, or clinical
+                  advice.
+                </p>
               </div>
 
               {/* Sections */}
-              <div className="space-y-6">
-                {(selectedReport.sections || []).map((sec: any, idx: number) => (
-                  <div key={idx} className="space-y-2">
-                    <h3 className="text-sm font-bold text-teal-300 border-b border-slate-800/60 pb-1">
+              <ul className="space-y-6">
+                {(selectedReport.sections || []).map((sec, idx) => (
+                  <li key={idx} className="space-y-2">
+                    <h3 className="border-b border-slate-800/60 pb-1 text-sm font-bold text-teal-300">
                       {sec.title}
                     </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800/50">
+                    <p className="rounded-xl border border-slate-800/50 bg-slate-950/40 p-3 text-xs leading-relaxed text-slate-300">
                       {sec.content}
                     </p>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </>
           ) : (
-            <div className="py-20 text-center text-xs text-slate-500">
+            <p className="py-20 text-center text-xs text-slate-500">
               Select or generate a report to view preview.
-            </div>
+            </p>
           )}
-        </div>
-      </div>
+        </main>
+      </section>
 
       {/* Generate Report Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
-            <h3 className="text-sm font-bold text-white">Generate Programme Intelligence Report</h3>
-            <form onSubmit={handleGenerateReport} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Report Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. Q3 Maternal & Child Health Evaluation Report"
-                  required
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-teal-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-3 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 hover:bg-slate-700"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={generating}
-                  className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold text-xs shadow-lg"
-                >
-                  {generating ? 'Generating...' : 'Generate Report'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
+      {showModal && <Modal onClose={() => setShowModal(false)} />}
+    </section>
   );
 }
+
+type ReportBarProps = {
+  rep: Report;
+  isSelected: boolean;
+  onSelect: () => void;
+};
+const ReportBar = ({ isSelected, onSelect, rep }: ReportBarProps) => {
+  const { mutateAsync: deleteReportAsync, isPending: deleting } =
+    useDeleteReport();
+
+  return (
+    <div
+      onClick={() => onSelect()}
+      className={`transition-300 cursor-pointer rounded-xl border p-3.5 ${
+        isSelected
+          ? "border-teal-500/40 bg-teal-950/20 shadow-sm"
+          : "border-slate-800 bg-[#0f172a]/90 hover:border-slate-700"
+      }`}
+    >
+      <h6 className="truncate text-xs font-bold text-slate-100">{rep.title}</h6>
+      <div className="mt-1 flex items-center gap-3 text-[10px] text-slate-400">
+        <span className="flex items-center gap-1">
+          <Calendar className="size-3 shrink-0 text-slate-500" />
+          {new Date(rep.createdAt).toLocaleDateString()}
+        </span>
+        <span className="font-medium text-teal-400">Ready</span>
+        <button
+          type="button"
+          className={cn(
+            "ms-auto cursor-pointer disabled:pointer-events-none disabled:opacity-75",
+            "[&>svg]:size-3.5 [&>svg]:shrink-0",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteReportAsync(rep.id);
+          }}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <LoaderCircle className="animate-spin stroke-3 text-red-400" />
+          ) : (
+            <Trash className="text-red-400" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const Modal = ({ onClose }: { onClose: () => void }) => {
+  const { mutateAsync: generateReportAsync, isPending: generating } =
+    useGenerateReport();
+
+  const [title, setTitle] = useState("");
+
+  const handleGenerateReport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title) return;
+    await generateReportAsync(title);
+    onClose();
+  };
+
+  return (
+    <section
+      aria-label="modal backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+    >
+      <section
+        aria-label="modal"
+        className="w-full max-w-md space-y-4 rounded-2xl border border-slate-800 bg-[#0f172a] p-6 shadow-2xl"
+      >
+        <h3 className="text-sm font-bold text-white">
+          Generate Programme Intelligence Report
+        </h3>
+        <form onSubmit={handleGenerateReport} className="space-y-4">
+          <InputGroup
+          id="report_title"
+            label="Report Title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Q3 Maternal & Child Health Evaluation Report"
+            required
+          />
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onClose()}
+              className="rounded-xl bg-slate-800 px-3 py-2 text-xs text-slate-300 hover:bg-slate-700 disabled:pointer-events-none disabled:opacity-50"
+              disabled={generating}
+            >
+              Cancel
+            </button>
+
+            <button
+              type="submit"
+              disabled={generating}
+              className="flex items-center gap-1 rounded-xl bg-teal-600 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg hover:bg-teal-500 disabled:pointer-events-none disabled:opacity-75"
+            >
+              {generating ? (
+                <>
+                  <LoaderCircle className="size-3.5 shrink-0 animate-spin stroke-3" />
+                  Generating...
+                </>
+              ) : (
+                "Generate Report"
+              )}
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
+  );
+};

@@ -22,7 +22,16 @@
 body {
   background-color: #0b0f19;
   color: #f1f5f9;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    sans-serif;
   overflow-x: hidden;
 }
 
@@ -43,8 +52,12 @@ body {
 }
 
 /* Glassmorphism background utility */
-.glass-panel {
+@utility glass-panel {
   background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@utility transition-300 {
+  @apply transition-all duration-300;
 }

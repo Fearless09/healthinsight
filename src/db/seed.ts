@@ -1,18 +1,25 @@
-import { db } from './index';
-import { users, workspaces, workspaceMembers, documents, documentChunks, datasets, datasetRows } from './schema';
-import { hashPassword } from '@/lib/auth';
-import { detectAndRedactPii } from '@/lib/pii-detector';
-import { chunkDocumentPages } from '@/lib/doc-parser';
-import { AIProvider } from '@/lib/hf-client';
-import { storeDocumentChunkVector } from '@/lib/vector-store';
-import { calculateDeterministicStats, parseAndValidateCSV } from '@/lib/stats-engine';
-import fs from 'fs/promises';
-import path from 'path';
+import { db } from "./index";
+import {
+  users,
+  workspaces,
+  workspaceMembers,
+  documents,
+  datasets,
+} from "./schema";
+import { hashPassword } from "@/lib/auth";
+import { detectAndRedactPii } from "@/lib/pii-detector";
+import { chunkDocumentPages } from "@/lib/doc-parser";
+import { AIProvider } from "@/lib/hf-client";
+import { storeDocumentChunkVector } from "@/lib/vector-store";
+import {
+  calculateDeterministicStats,
+  parseAndValidateCSV,
+} from "@/lib/stats-engine";
 
 export const DEMO_HEALTH_REPORTS = [
   {
-    name: 'Maternal Health Outreach Programme Report.txt',
-    fileType: 'txt',
+    name: "Maternal Health Outreach Programme Report.txt",
+    fileType: "txt",
     content: `
 MATERNAL HEALTH OUTREACH PROGRAMME - ANNUAL EVALUATION REPORT
 Synthetic Demonstration Data — Not Real Patient Information.
@@ -44,8 +51,8 @@ RECOMMENDATIONS FOR PROGRAMME MANAGEMENT
 `.trim(),
   },
   {
-    name: 'Community Health Education Programme Evaluation.txt',
-    fileType: 'txt',
+    name: "Community Health Education Programme Evaluation.txt",
+    fileType: "txt",
     content: `
 COMMUNITY HEALTH EDUCATION & DISEASE PREVENTION PROGRAMME
 Synthetic Demonstration Data — Not Real Patient Information.
@@ -69,8 +76,8 @@ RECOMMENDATIONS
 `.trim(),
   },
   {
-    name: 'Adolescent Health Awareness Programme Report.txt',
-    fileType: 'txt',
+    name: "Adolescent Health Awareness Programme Report.txt",
+    fileType: "txt",
     content: `
 ADOLESCENT HEALTH & NUTRITION AWARENESS PROGRAMME
 Synthetic Demonstration Data — Not Real Patient Information.
@@ -97,7 +104,7 @@ STRATEGIC DIRECTIVES
 
 export const DEMO_CSV_DATASETS = [
   {
-    name: 'Programme_Participation_Dataset_2025.csv',
+    name: "Programme_Participation_Dataset_2025.csv",
     content: `location,participants,completed,referred,outcome_rate,date
 North District,350,295,48,84.3,2025-01-15
 Central Region,420,360,65,85.7,2025-02-15
@@ -109,7 +116,7 @@ Riverland Site,320,260,50,81.2,2025-07-15
 Western Outpost,280,210,55,75.0,2025-08-15`,
   },
   {
-    name: 'Maternal_Outreach_Performance.csv',
+    name: "Maternal_Outreach_Performance.csv",
     content: `location,participants,completed,referred,outcome_rate,date
 District A - Primary Clinic,180,155,22,86.1,2025-01-10
 District B - Outpost Clinic,140,110,28,78.6,2025-02-10
@@ -120,56 +127,60 @@ District E - Rural Center,190,145,40,76.3,2025-05-10`,
 ];
 
 export async function seedDemoData() {
-  console.log('Seeding synthetic demonstration data...');
+  console.log("Seeding synthetic demonstration data...");
 
   // 1. Create Default Users for Demo
-  const adminPassword = await hashPassword('AdminPass123!');
-  const defaultPassword = await hashPassword('DemoPass123!');
+  const adminPassword = await hashPassword("AdminPass123!");
+  const defaultPassword = await hashPassword("DemoPass123!");
 
   const adminUser = {
-    id: 'usr-admin-001',
-    email: 'admin@healthinsight.org',
+    id: "usr-admin-001",
+    email: "admin@healthinsight.org",
     passwordHash: adminPassword,
-    name: 'Dr. Sarah Jenkins (Admin)',
-    role: 'ADMIN' as const,
+    name: "Dr. Sarah Jenkins (Admin)",
+    role: "ADMIN" as const,
   };
 
   const pmUser = {
-    id: 'usr-pm-002',
-    email: 'pm@healthinsight.org',
+    id: "usr-pm-002",
+    email: "pm@healthinsight.org",
     passwordHash: defaultPassword,
-    name: 'Alex Rivera (Programme Manager)',
-    role: 'PROGRAMME_MANAGER' as const,
+    name: "Alex Rivera (Programme Manager)",
+    role: "PROGRAMME_MANAGER" as const,
   };
 
   const researcherUser = {
-    id: 'usr-researcher-003',
-    email: 'researcher@healthinsight.org',
+    id: "usr-researcher-003",
+    email: "researcher@healthinsight.org",
     passwordHash: defaultPassword,
-    name: 'Dr. Marcus Vance (Lead Researcher)',
-    role: 'RESEARCHER' as const,
+    name: "Dr. Marcus Vance (Lead Researcher)",
+    role: "RESEARCHER" as const,
   };
 
   const viewerUser = {
-    id: 'usr-viewer-004',
-    email: 'viewer@healthinsight.org',
+    id: "usr-viewer-004",
+    email: "viewer@healthinsight.org",
     passwordHash: defaultPassword,
-    name: 'Elena Rostova (Stakeholder Viewer)',
-    role: 'VIEWER' as const,
+    name: "Elena Rostova (Stakeholder Viewer)",
+    role: "VIEWER" as const,
   };
 
   try {
-    await db.insert(users).values([adminUser, pmUser, researcherUser, viewerUser]).onConflictDoNothing();
+    await db
+      .insert(users)
+      .values([adminUser, pmUser, researcherUser, viewerUser])
+      .onConflictDoNothing();
   } catch (err) {
-    console.warn('User seed note:', err);
+    console.warn("User seed note:", err);
   }
 
   // 2. Create Default Workspace
   const demoWorkspace = {
-    id: 'wsp-global-001',
-    name: 'Global Health Outreach Workspace',
-    slug: 'global-health-outreach',
-    description: 'Main workspace for maternal, community, and adolescent health programme analysis.',
+    id: "wsp-global-001",
+    name: "Global Health Outreach Workspace",
+    slug: "global-health-outreach",
+    description:
+      "Main workspace for maternal, community, and adolescent health programme analysis.",
     createdById: adminUser.id,
   };
 
@@ -179,14 +190,34 @@ export async function seedDemoData() {
     await db
       .insert(workspaceMembers)
       .values([
-        { id: 'wm-1', workspaceId: demoWorkspace.id, userId: adminUser.id, role: 'ADMIN' },
-        { id: 'wm-2', workspaceId: demoWorkspace.id, userId: pmUser.id, role: 'PROGRAMME_MANAGER' },
-        { id: 'wm-3', workspaceId: demoWorkspace.id, userId: researcherUser.id, role: 'RESEARCHER' },
-        { id: 'wm-4', workspaceId: demoWorkspace.id, userId: viewerUser.id, role: 'VIEWER' },
+        {
+          id: "wm-1",
+          workspaceId: demoWorkspace.id,
+          userId: adminUser.id,
+          role: "ADMIN",
+        },
+        {
+          id: "wm-2",
+          workspaceId: demoWorkspace.id,
+          userId: pmUser.id,
+          role: "PROGRAMME_MANAGER",
+        },
+        {
+          id: "wm-3",
+          workspaceId: demoWorkspace.id,
+          userId: researcherUser.id,
+          role: "RESEARCHER",
+        },
+        {
+          id: "wm-4",
+          workspaceId: demoWorkspace.id,
+          userId: viewerUser.id,
+          role: "VIEWER",
+        },
       ])
       .onConflictDoNothing();
   } catch (err) {
-    console.warn('Workspace seed note:', err);
+    console.warn("Workspace seed note:", err);
   }
 
   // 3. Process & Seed Synthetic Documents
@@ -206,17 +237,20 @@ export async function seedDemoData() {
       fileType: report.fileType,
       fileSize: Buffer.byteLength(report.content),
       storagePath: `/demo/${report.name}`,
-      status: 'COMPLETED' as const,
+      status: "COMPLETED" as const,
       pageCount: 1,
       wordCount: report.content.split(/\s+/).length,
       summary: `Synthetic Health Report evaluating key metrics, completion rates, and systemic barriers across health districts.`,
       extractedFindings: [
-        'Maternal ANC completion reached 84.2% across participating rural health centers.',
-        'Transportation cost was cited as the primary barrier to emergency care access.',
-        'Community emergency transport funds reduced delay to care by 34% in pilot villages.',
+        "Maternal ANC completion reached 84.2% across participating rural health centers.",
+        "Transportation cost was cited as the primary barrier to emergency care access.",
+        "Community emergency transport funds reduced delay to care by 34% in pilot villages.",
       ],
       hasPiiDetected: piiResult.piiFound,
-      piiSummary: { count: piiResult.totalCount, types: piiResult.detectedTypes },
+      piiSummary: {
+        count: piiResult.totalCount,
+        types: piiResult.detectedTypes,
+      },
       processedAt: new Date(),
     };
 
@@ -236,7 +270,7 @@ export async function seedDemoData() {
         });
       }
     } catch (err) {
-      console.warn('Doc seed note:', err);
+      console.warn("Doc seed note:", err);
     }
   }
 
@@ -258,7 +292,13 @@ export async function seedDemoData() {
       storagePath: `/demo/${datasetDef.name}`,
       rowCount: rows.length,
       columnCount: columns.length,
-      columns: columns.map((c) => ({ name: c, type: typeof rows[0]?.[c] === 'number' ? 'numeric' as const : 'categorical' as const })),
+      columns: columns.map((c) => ({
+        name: c,
+        type:
+          typeof rows[0]?.[c] === "number"
+            ? ("numeric" as const)
+            : ("categorical" as const),
+      })),
       calculatedStats: stats,
       aiSummary: {
         keyFindings: [
@@ -266,19 +306,26 @@ export async function seedDemoData() {
           `Average programme completion rate stands at ${stats.completionRate}%.`,
           `Referral rate to clinical specialist facilities is ${stats.referralRate}%.`,
         ],
-        trends: ['Participation increased steadily over Q1-Q3.', 'East Coast site demonstrated highest outcome rate (92.0%).'],
-        anomalies: ['Southern Valley site recorded lower completion (76.3%) due to local logistics.'],
-        dataQuality: ['0.0% missing data across key indicator fields.'],
-        furtherQuestions: ['What specific transportation mechanisms contributed to East Coast high completion?'],
+        trends: [
+          "Participation increased steadily over Q1-Q3.",
+          "East Coast site demonstrated highest outcome rate (92.0%).",
+        ],
+        anomalies: [
+          "Southern Valley site recorded lower completion (76.3%) due to local logistics.",
+        ],
+        dataQuality: ["0.0% missing data across key indicator fields."],
+        furtherQuestions: [
+          "What specific transportation mechanisms contributed to East Coast high completion?",
+        ],
       },
     };
 
     try {
       await db.insert(datasets).values(datasetObj).onConflictDoNothing();
     } catch (err) {
-      console.warn('Dataset seed note:', err);
+      console.warn("Dataset seed note:", err);
     }
   }
 
-  console.log('Seed completed successfully!');
+  console.log("Seed completed successfully!");
 }

@@ -7,7 +7,7 @@ HealthInsight is a production-quality, full-stack AI-powered health programme an
 ---
 
 ## 1. Product Overview
-HealthInsight helps healthcare operations teams turn unstructured reports, evaluation studies, and structured programme datasets into actionable intelligence. The application combines Retrieval-Augmented Generation (RAG) over vector-indexed documents, PII protection preprocessing, deterministic statistical calculations, side-by-side document comparison, exportable report generation, and role-based workspace governance.
+HealthInsight helps healthcare operations teams turn unstructured reports, evaluation studies, and structured programme datasets into actionable intelligence. The application combines Retrieval-Augmented Generation (RAG) over vector-indexed documents, PII protection preprocessing, deterministic statistical calculations, side-by-side document comparison, exportable report generation, user profile management, and role-based workspace governance protected by server-side proxy middleware (`proxy.ts`).
 
 > [!IMPORTANT]
 > **Mandatory Health Notice:**
@@ -21,14 +21,20 @@ Health NGOs and research organizations collect vast amounts of unstructured eval
 ---
 
 ## 3. Core Features
-1. **Authentication & Multi-Tenant Workspaces:** Secure cookie JWT sessions, workspace isolation, and RBAC roles (`ADMIN`, `PROGRAMME_MANAGER`, `RESEARCHER`, `VIEWER`).
-2. **Document Management & PII Preprocessing:** Upload PDF, DOCX, TXT. Automated PII detection and redaction (`[PERSON]`, `[PHONE]`, `[EMAIL]`, `[ADDRESS]`, `[ID]`).
-3. **Semantic Chunking & pgvector RAG Indexing:** Document pages split into ~500 token chunks and embedded into PostgreSQL via `pgvector`.
-4. **Grounded AI Research Assistant:** Vector similarity retrieval, system prompt injection protection, exact page-level citations, grounding score, and explicit warnings when context is insufficient.
-5. **Structured CSV Dataset Analysis:** Deterministic TypeScript calculation of total participants, average, completion rate %, referral rate %, outcome rate %, min/max, median, missing data %, and time-series trends. AI provides qualitative interpretation only.
-6. **Side-by-Side Document Comparison:** Compare baseline vs. target documents across common findings, metric differences, and outcomes.
-7. **Report Generator:** Synthesize document RAG findings, dataset analytics, and AI insights into structured, exportable PDF reports.
-8. **Audit Trail Logging:** Immutable security log tracking all authentication, uploads, AI queries, report generations, and role changes.
+1. **User Profile & Account Security:**
+   - **Profile Photo Upload:** Upload avatar images (JPG, PNG, WEBP) stored in cloud/local storage.
+   - **Editable Name:** Update account display name seamlessly across the workspace.
+   - **Fixed Email Identity:** Fixed email address for account identity verification and security audit integrity.
+   - **Password Management:** Change password with verification of current password and bcrypt hashing.
+2. **Server-Side Route Protection (`proxy.ts`):** Next.js 16 `proxy.ts` middleware protects all `(dashboard)` routes (`/dashboard`, `/settings`, `/datasets`, `/documents`, `/reports`, `/assistant`, `/audit-logs`, `/compare`, `/team`), automatically redirecting unauthenticated users to `/login`.
+3. **Authentication & Multi-Tenant Workspaces:** Stateless JWT session cookies (`jose`), workspace isolation, and RBAC roles (`ADMIN`, `PROGRAMME_MANAGER`, `RESEARCHER`, `VIEWER`).
+4. **Document Management & PII Preprocessing:** Upload PDF, DOCX, TXT. Automated PII detection and redaction (`[PERSON]`, `[PHONE]`, `[EMAIL]`, `[ADDRESS]`, `[ID]`).
+5. **Semantic Chunking & pgvector RAG Indexing:** Document pages split into ~500 token chunks and embedded into PostgreSQL via `pgvector`.
+6. **Grounded AI Research Assistant:** Vector similarity retrieval, system prompt injection protection, exact page-level citations, grounding score, and explicit warnings when context is insufficient.
+7. **Structured CSV Dataset Analysis:** Deterministic TypeScript calculation of total participants, average, completion rate %, referral rate %, outcome rate %, min/max, median, missing data %, and time-series trends. AI provides qualitative interpretation only.
+8. **Side-by-Side Document Comparison:** Compare baseline vs. target documents across common findings, metric differences, and outcomes.
+9. **Report Generator:** Synthesize document RAG findings, dataset analytics, and AI insights into structured, exportable PDF reports.
+10. **Audit Trail Logging:** Immutable security log tracking all authentication, uploads, AI queries, profile changes, report generations, and role changes.
 
 ---
 
@@ -36,11 +42,12 @@ Health NGOs and research organizations collect vast amounts of unstructured eval
 
 ```mermaid
 flowchart TD
-    User([User / Browser]) <--> NextApp[Next.js 16 Web & API Gateway]
+    User([User / Browser]) <--> Proxy[proxy.ts Middleware]
+    Proxy <-->|Session Guard| NextApp[Next.js 16 Web & API Gateway]
     
     subgraph Storage & DB
         Postgres[(PostgreSQL + pgvector)]
-        BlobStorage[Vercel Blob / Storage]
+        BlobStorage[Vercel Blob / Local Storage]
     end
     
     subgraph Core Engines
@@ -63,14 +70,15 @@ flowchart TD
 ---
 
 ## 5. Tech Stack
-- **Framework:** Next.js 16.3.6 (App Router, TypeScript, React 19)
+- **Framework:** Next.js 16.3.6 (App Router, TypeScript, React 19, `proxy.ts`)
 - **Styling:** Tailwind CSS v4, Lucide Icons, Recharts
 - **Database & Vector Search:** PostgreSQL with `pgvector` extension
 - **ORM:** Drizzle ORM (`drizzle-orm`, `drizzle-kit`, `postgres`)
+- **Authentication & Security:** `jose` JWT cookies, `bcryptjs` password hashing, `proxy.ts` middleware
 - **AI Models:** Hugging Face Inference API (`@huggingface/inference`)
   - Text Model: `mistralai/Mistral-7B-Instruct-v0.3`
   - Embedding Model: `sentence-transformers/all-MiniLM-L6-v2` (384 float dimensions)
-- **Storage:** Vercel Blob (`@vercel/blob`) with local fallback
+- **Storage:** Vercel Blob (`@vercel/blob`) with local fallback (`/public/uploads`)
 - **Testing:** Vitest
 
 ---
@@ -97,11 +105,17 @@ sequenceDiagram
 
 ---
 
-## 7. Security & AI Safety Considerations
-1. **Prompt Injection Protection:** Untrusted text inside retrieved document chunks is wrapped inside `[RETRIEVED DOCUMENT CONTEXT]` blocks. The system prompt instructs the model to ignore any embedded commands inside documents.
-2. **PII Preprocessing:** Personal identifiers are scrubbed before generating embeddings or sending context to LLMs.
-3. **No LLM Arithmetic:** Statistical metrics (totals, completion rate, referral rate, outcome rate) are strictly computed in code.
-4. **Workspace Data Isolation:** Database queries enforce `workspaceId` filtering on all documents, chunks, datasets, and reports.
+## 7. API Routes Reference
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Authenticates user credentials & issues JWT cookie |
+| `POST` | `/api/auth/register` | Registers new user account with hashed password |
+| `GET` / `POST` | `/api/auth/session` | Fetches active user session or logs out |
+| `PUT` | `/api/auth/profile` | Updates user profile name, avatar picture, and password |
+| `POST` | `/api/documents` | Uploads clinical document, scrubs PII, generates embeddings |
+| `POST` | `/api/datasets` | Uploads CSV dataset and calculates summary statistics |
+| `POST` | `/api/ai/chat` | Executes grounded RAG search & returns LLM response |
 
 ---
 

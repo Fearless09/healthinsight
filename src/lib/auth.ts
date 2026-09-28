@@ -1,40 +1,38 @@
-import { compare, hash } from 'bcryptjs';
-import { SignJWT, jwtVerify } from 'jose';
-import { cookies } from 'next/headers';
+import { UserSession } from "@/types/type";
+import { compare, hash } from "bcryptjs";
+import { SignJWT, jwtVerify } from "jose";
+import { cookies } from "next/headers";
 
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'healthinsight_super_secret_jwt_key_32bytes_long!'
+  process.env.JWT_SECRET || "healthinsight_super_secret_jwt_key_32bytes_long!",
 );
 
-const SESSION_COOKIE_NAME = 'healthinsight_session';
-
-export interface UserSession {
-  userId: string;
-  email: string;
-  name: string;
-  role: 'ADMIN' | 'PROGRAMME_MANAGER' | 'RESEARCHER' | 'VIEWER';
-  workspaceId: string;
-  workspaceName: string;
-  workspaceSlug: string;
-}
+const SESSION_COOKIE_NAME = "healthinsight_session";
 
 export async function hashPassword(password: string): Promise<string> {
   return hash(password, 10);
 }
 
-export async function verifyPassword(password: string, hashStr: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hashStr: string,
+): Promise<boolean> {
   return compare(password, hashStr);
 }
 
-export async function createSessionToken(payload: UserSession): Promise<string> {
+export async function createSessionToken(
+  payload: UserSession,
+): Promise<string> {
   return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime("7d")
     .sign(JWT_SECRET);
 }
 
-export async function verifySessionToken(token: string): Promise<UserSession | null> {
+export async function verifySessionToken(
+  token: string,
+): Promise<UserSession | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return payload as unknown as UserSession;
@@ -55,9 +53,9 @@ export async function setSessionCookie(session: UserSession): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 }

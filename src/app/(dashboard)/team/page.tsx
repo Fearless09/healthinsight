@@ -1,162 +1,232 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { Users, Shield, UserPlus, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Users, Shield, Loader } from "lucide-react";
+import { cn, getRole, getRoleBadgeColor } from "@/utils/utils";
+import { UserRole, userRoles } from "@/db/schema";
+import { useChangeMemberRole, useTeam } from "@/tanstack/(hooks)/team";
+import { useMemo, useState } from "react";
+import { SelectGroup } from "@/components/ui/Select";
+import { Member } from "@/types/type";
+import { InputGroup } from "@/components/ui/Input";
 
 export default function TeamPage() {
-  const [members, setMembers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const { data: membersData, isLoading: loading } = useTeam();
 
-  const fetchTeam = () => {
-    fetch('/api/team')
-      .then((res) => res.json())
-      .then((data) => setMembers(data.members || []))
-      .catch((err) => console.warn('Fetch team error:', err))
-      .finally(() => setLoading(false));
-  };
+  const members = useMemo(() => {
+    const data = membersData || [];
 
-  useEffect(() => {
-    fetchTeam();
-  }, []);
-
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    try {
-      const res = await fetch('/api/team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: userId, newRole }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Role change failed');
-
-      alert(`Role updated to ${newRole}`);
-      fetchTeam();
-    } catch (err: any) {
-      alert(err.message || 'Updating role failed');
-    }
-  };
-
-  const getRoleBadge = (role: string) => {
-    switch (role) {
-      case 'ADMIN':
-        return 'bg-purple-500/10 text-purple-300 border-purple-500/30';
-      case 'PROGRAMME_MANAGER':
-        return 'bg-teal-500/10 text-teal-300 border-teal-500/30';
-      case 'RESEARCHER':
-        return 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30';
-      default:
-        return 'bg-slate-800 text-slate-300 border-slate-700';
-    }
-  };
+    if (search.trim() === "") return data;
+    return data.filter((m) => {
+      const s = search.toLowerCase();
+      return (
+        m.name.toLowerCase().includes(s) ||
+        m.email.toLowerCase().includes(s) ||
+        m.role.toLowerCase().includes(s)
+      );
+    });
+  }, [membersData, search]);
 
   return (
-    <div className="space-y-6">
+    <section aria-label="team" className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-white tracking-tight">Team Management & Role-Based Access Control (RBAC)</h1>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Manage workspace members, assign RBAC roles (ADMIN, PROGRAMME_MANAGER, RESEARCHER, VIEWER), and enforce data access isolation.
+      <header>
+        <h1 className="text-2xl font-extrabold tracking-tight text-white">
+          Team Management & Role-Based Access Control (RBAC)
+        </h1>
+        <p className="mt-0.5 text-xs text-slate-400">
+          Manage workspace members, assign RBAC roles (ADMIN, PROGRAMME_MANAGER,
+          RESEARCHER, VIEWER), and enforce data access isolation.
         </p>
-      </div>
+      </header>
 
       {/* Permissions Matrix Reference */}
-      <div className="p-4 rounded-2xl bg-[#0f172a]/90 border border-slate-800 space-y-3">
-        <h2 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-          <Shield className="w-4 h-4 text-teal-400" />
+      <main
+        aria-label="role permissions matrix"
+        className="space-y-3 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-4"
+      >
+        <h2 className="flex items-center gap-2 text-xs font-bold tracking-wider text-white uppercase">
+          <Shield className="size-4 shrink-0 fill-teal-400 text-teal-400" />
           Workspace Role Permissions Matrix
         </h2>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left text-slate-300">
-            <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase">
+          <table className="w-full text-left text-xs text-slate-300">
+            <thead className="bg-slate-900 text-[10px] text-slate-400 uppercase">
               <tr>
-                <th className="p-2.5 rounded-l-lg">Role</th>
-                <th className="p-2.5">Upload Docs / Datasets</th>
-                <th className="p-2.5">Query AI RAG Assistant</th>
-                <th className="p-2.5">Generate Reports</th>
-                <th className="p-2.5">Delete Docs</th>
-                <th className="p-2.5 rounded-r-lg">Manage Team & Logs</th>
+                <Th name="Role" />
+                <Th name="Upload Docs / Datasets" />
+                <Th name="Query AI RAG Assistant" />
+                <Th name="Generate Reports" />
+                <Th name="Delete Docs" />
+                <Th name="Manage Team & Logs" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80">
+            <tbody className="divide-y divide-slate-800/80 border-t border-slate-800/80">
               <tr>
-                <td className="p-2.5 font-bold text-purple-400">ADMIN</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
+                <TDRole role="ADMIN" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
               </tr>
               <tr>
-                <td className="p-2.5 font-bold text-teal-300">PROGRAMME_MANAGER</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
+                <TDRole role="PROGRAMME_MANAGER" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Restricted" />
               </tr>
               <tr>
-                <td className="p-2.5 font-bold text-cyan-300">RESEARCHER</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
+                <TDRole role="RESEARCHER" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Restricted" />
+                <TdPermission permission="Restricted" />
               </tr>
               <tr>
-                <td className="p-2.5 font-bold text-slate-300">VIEWER</td>
-                <td className="p-2.5 text-slate-500">✕ Read Only</td>
-                <td className="p-2.5 text-teal-400">✓ Allowed</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
-                <td className="p-2.5 text-slate-500">✕ Restricted</td>
+                <TDRole role="VIEWER" />
+                <TdPermission permission="Read Only" />
+                <TdPermission permission="Allowed" />
+                <TdPermission permission="Restricted" />
+                <TdPermission permission="Restricted" />
+                <TdPermission permission="Restricted" />
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
+      </main>
 
       {/* Team Member List */}
-      <div className="p-5 rounded-2xl bg-[#0f172a]/90 border border-slate-800 space-y-4">
-        <h2 className="text-sm font-bold text-white flex items-center gap-2">
-          <Users className="w-4 h-4 text-teal-400" />
-          Active Workspace Members ({members.length})
-        </h2>
+      <section
+        aria-label="team member list"
+        className="space-y-4 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-5"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2 text-sm font-bold text-white">
+            <Users className="size-4 shrink-0 text-teal-400" />
+            Active Workspace Members ({members.length})
+          </h2>
 
-        <div className="space-y-3">
+          <div className="w-full max-w-xs">
+            <InputGroup
+              id="member_search"
+              type="search"
+              icon
+              size="sm"
+              placeholder="Search for members by name, email or role"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {loading && members.length === 0 && (
+          <div className="flex items-center gap-2">
+            <Loader className="size-4 shrink-0 animate-spin stroke-3 text-teal-400" />
+            <span className="text-sm font-bold text-white">
+              Loading members...
+            </span>
+          </div>
+        )}
+        <main className="space-y-3">
           {members.map((m) => (
-            <div key={m.id} className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-teal-300 text-sm">
-                  {m.name.charAt(0)}
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-slate-100">{m.name}</div>
-                  <div className="text-xs text-slate-400">{m.email}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className={`px-2.5 py-1 rounded-md border text-xs font-semibold ${getRoleBadge(m.role)}`}>
-                  {m.role}
-                </span>
-
-                {/* Role Switcher */}
-                <select
-                  value={m.role}
-                  onChange={(e) => handleRoleChange(m.userId, e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-300 focus:outline-none focus:border-teal-500"
-                >
-                  <option value="ADMIN">ADMIN</option>
-                  <option value="PROGRAMME_MANAGER">PROGRAMME_MANAGER</option>
-                  <option value="RESEARCHER">RESEARCHER</option>
-                  <option value="VIEWER">VIEWER</option>
-                </select>
-              </div>
-            </div>
+            <TeamMember key={m.id} m={m} />
           ))}
+        </main>
+      </section>
+    </section>
+  );
+}
+
+const TeamMember = ({ m }: { m: Member }) => {
+  const { mutateAsync: changeRoleAsync, isPending: changingRole } =
+    useChangeMemberRole();
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    changeRoleAsync({ userId, newRole: newRole as UserRole });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/80 p-4">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-sm font-bold text-teal-300">
+          {m.name.charAt(0)}
+        </span>
+        <div>
+          <h6 className="text-sm font-bold text-slate-100">{m.name}</h6>
+          <p className="text-xs text-slate-400">{m.email}</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <span
+          className={`rounded-md border px-2.5 py-1 text-xs font-semibold ${getRoleBadgeColor(m.role)}`}
+        >
+          {getRole(m.role)}
+        </span>
+
+        {/* Role Switcher */}
+        <div>
+          {changingRole ? (
+            <Loader className="size-4 shrink-0 animate-spin stroke-3 text-teal-400" />
+          ) : (
+            <SelectGroup
+              id="user-role"
+              variant="secondary"
+              value={m.role}
+              onChange={(e) => handleRoleChange(m.userId, e.target.value)}
+              options={userRoles.map((r) => ({
+                value: r,
+                name: r.replaceAll("_", " "),
+              }))}
+              size="sm"
+            />
+          )}
         </div>
       </div>
     </div>
   );
-}
+};
+
+const Th = ({ name }: { name: string }) => {
+  return (
+    <th className="p-2.5 text-center first:rounded-l-lg first:text-left last:rounded-r-lg">
+      {name}
+    </th>
+  );
+};
+
+const TDRole = ({ role }: { role: UserRole }) => {
+  const colors = useMemo(() => {
+    const colors = getRoleBadgeColor(role).split(" ");
+    const text = colors.find((c) => c.startsWith("text-")) || "";
+    return { text };
+  }, [role, getRoleBadgeColor]);
+
+  return (
+    <td className={cn("p-2.5 font-bold", colors.text)}>
+      {role.replaceAll("_", " ")}
+    </td>
+  );
+};
+
+const TdPermission = ({
+  permission,
+}: {
+  permission: "Allowed" | "Restricted" | "Read Only";
+}) => {
+  return (
+    <td
+      className={cn("p-2.5 text-center text-slate-500", {
+        "text-teal-400": permission === "Allowed",
+      })}
+    >
+      {permission === "Allowed" ? "✓" : "✕"}
+      {` ${permission}`}
+    </td>
+  );
+};

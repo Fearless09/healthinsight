@@ -1,17 +1,8 @@
-import { db } from '@/db';
-import { auditLogs } from '@/db/schema';
+import { db } from "@/db";
+import { Audit, auditLogs } from "@/db/schema";
+import { AuditEvent } from "@/types/type";
 
-export interface AuditEvent {
-  workspaceId: string;
-  userId: string;
-  userEmail: string;
-  action: string;
-  resourceType: string;
-  resourceId?: string | null;
-  metadata?: Record<string, any>;
-}
-
-export const memoryAuditLogs: Array<AuditEvent & { id: string; timestamp: Date }> = [];
+export const memoryAuditLogs: Array<Audit> = [];
 
 export async function logAuditEvent(event: AuditEvent): Promise<void> {
   const entry = {
@@ -32,6 +23,6 @@ export async function logAuditEvent(event: AuditEvent): Promise<void> {
   try {
     await db.insert(auditLogs).values(entry);
   } catch (err) {
-    console.warn('Audit log saved to memory fallback:', entry.action);
+    console.warn("Audit log saved to memory fallback:", entry.action);
   }
 }

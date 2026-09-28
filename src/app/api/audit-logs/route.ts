@@ -1,23 +1,26 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { auditLogs } from '@/db/schema';
-import { eq, desc } from 'drizzle-orm';
-import { getSession } from '@/lib/auth';
-import { hasPermission } from '@/lib/rbac';
-import { memoryAuditLogs } from '@/lib/audit';
+import { NextResponse } from "next/server";
+import { db } from "@/db";
+import { Audit, auditLogs } from "@/db/schema";
+import { eq, desc } from "drizzle-orm";
+import { getSession } from "@/lib/auth";
+import { hasPermission } from "@/lib/rbac";
+import { memoryAuditLogs } from "@/lib/audit";
 
 export async function GET() {
   const session = await getSession();
-  const role = session?.role || 'ADMIN';
+  const role = session?.role || "ADMIN";
 
-  if (!hasPermission(role, 'canViewAuditLogs')) {
-    return NextResponse.json({ error: 'Permission denied: Only Administrators can view audit logs' }, { status: 403 });
+  if (!hasPermission(role, "canViewAuditLogs")) {
+    return NextResponse.json(
+      { error: "Permission denied: Only Administrators can view audit logs" },
+      { status: 403 },
+    );
   }
 
-  const workspaceId = session?.workspaceId || 'wsp-global-001';
+  const workspaceId = session?.workspaceId || "wsp-global-001";
 
   try {
-    const logs = await db
+    const logs: Audit[] = await db
       .select()
       .from(auditLogs)
       .where(eq(auditLogs.workspaceId, workspaceId))
@@ -28,7 +31,7 @@ export async function GET() {
       return NextResponse.json({ auditLogs: logs });
     }
   } catch (err) {
-    console.warn('DB audit logs query fallback:', err);
+    console.warn("DB audit logs query fallback:", err);
   }
 
   // Fallback memory audit logs
@@ -36,36 +39,43 @@ export async function GET() {
     return NextResponse.json({ auditLogs: memoryAuditLogs });
   }
 
-  const demoLogs = [
+  const demoLogs: Audit[] = [
     {
-      id: 'log-1',
+      id: "log-1",
       workspaceId,
-      userId: 'usr-admin-001',
-      userEmail: 'admin@healthinsight.org',
-      action: 'USER_LOGIN',
-      resourceType: 'AUTH',
-      metadata: { role: 'ADMIN' },
+      userId: "usr-admin-001",
+      userEmail: "admin@healthinsight.org",
+      action: "USER_LOGIN",
+      resourceType: "AUTH",
+      resourceId: "doc-demo-001",
+      metadata: { role: "ADMIN" },
       timestamp: new Date(),
     },
     {
-      id: 'log-2',
+      id: "log-2",
       workspaceId,
-      userId: 'usr-admin-001',
-      userEmail: 'admin@healthinsight.org',
-      action: 'DOCUMENT_UPLOADED',
-      resourceType: 'DOCUMENT',
-      resourceId: 'doc-demo-001',
-      metadata: { name: 'Maternal Health Outreach Programme Report.txt', piiFound: true },
+      userId: "usr-admin-001",
+      userEmail: "admin@healthinsight.org",
+      action: "DOCUMENT_UPLOADED",
+      resourceType: "DOCUMENT",
+      resourceId: "doc-demo-002",
+      metadata: {
+        name: "Maternal Health Outreach Programme Report.txt",
+        piiFound: true,
+      },
       timestamp: new Date(Date.now() - 3600000 * 2),
     },
     {
-      id: 'log-3',
+      id: "log-3",
       workspaceId,
-      userId: 'usr-researcher-003',
-      userEmail: 'researcher@healthinsight.org',
-      action: 'AI_QUESTION_ASKED',
-      resourceType: 'AI_ASSISTANT',
-      metadata: { question: 'What were the major barriers to maternal healthcare access?' },
+      userId: "usr-researcher-003",
+      userEmail: "researcher@healthinsight.org",
+      action: "AI_QUESTION_ASKED",
+      resourceType: "AI_ASSISTANT",
+      resourceId: "doc-demo-003",
+      metadata: {
+        question: "What were the major barriers to maternal healthcare access?",
+      },
       timestamp: new Date(Date.now() - 3600000 * 5),
     },
   ];

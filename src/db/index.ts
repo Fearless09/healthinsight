@@ -1,15 +1,11 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-import * as schema from './schema';
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
 
-const connectionString = process.env.DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:5432/healthinsight';
+const connectionString =
+  process.env.DATABASE_URL ||
+  "postgresql://neondb_owner:npg_Jqk6UbDt5vXf@ep-square-sea-b41esflw-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+if (!connectionString) throw Error("Database URL not provided");
 
-// Configure postgres-js client with max connection handling
-export const client = postgres(connectionString, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
-  onnotice: () => {}, // suppress verbose pg notices
-});
+const sql = neon(connectionString);
 
-export const db = drizzle(client, { schema });
+export const db = drizzle({ client: sql });

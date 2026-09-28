@@ -1,108 +1,130 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Search, Filter, Clock, User, CheckCircle2 } from 'lucide-react';
+import { useMemo, useState } from "react";
+import { Filter, Loader, User } from "lucide-react";
+import { useAudit } from "@/tanstack/(hooks)/audit";
+import { SelectGroup } from "@/components/ui/Select";
 
 export default function AuditLogsPage() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterAction, setFilterAction] = useState('ALL');
+  const { data: auditData, isPending: loading } = useAudit();
+  const logs = auditData || [];
 
-  useEffect(() => {
-    fetch('/api/audit-logs')
-      .then((res) => res.json())
-      .then((data) => setLogs(data.auditLogs || []))
-      .catch((err) => console.warn('Fetch audit logs error:', err))
-      .finally(() => setLoading(false));
-  }, []);
+  const [filterAction, setFilterAction] = useState("ALL");
 
-  const filteredLogs = logs.filter((log) =>
-    filterAction === 'ALL' ? true : log.action === filterAction
-  );
+  const filteredLogs = useMemo(() => {
+    if (filterAction === "ALL") return logs;
+    return logs.filter((log) => log.action === filterAction);
+  }, [logs, filterAction]);
 
   const getActionBadgeColor = (action: string) => {
-    if (action.includes('LOGIN')) return 'bg-purple-500/10 text-purple-300 border-purple-500/30';
-    if (action.includes('DOCUMENT')) return 'bg-teal-500/10 text-teal-300 border-teal-500/30';
-    if (action.includes('DATASET')) return 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30';
-    if (action.includes('AI')) return 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30';
-    if (action.includes('REPORT')) return 'bg-amber-500/10 text-amber-300 border-amber-500/30';
-    return 'bg-slate-800 text-slate-300 border-slate-700';
+    if (action.includes("LOGIN"))
+      return "bg-purple-500/10 text-purple-300 border-purple-500/30";
+    if (action.includes("DOCUMENT"))
+      return "bg-teal-500/10 text-teal-300 border-teal-500/30";
+    if (action.includes("DATASET"))
+      return "bg-cyan-500/10 text-cyan-300 border-cyan-500/30";
+    if (action.includes("AI"))
+      return "bg-indigo-500/10 text-indigo-300 border-indigo-500/30";
+    if (action.includes("REPORT"))
+      return "bg-amber-500/10 text-amber-300 border-amber-500/30";
+    return "bg-slate-800 text-slate-300 border-slate-700";
   };
 
   return (
-    <div className="space-y-6">
+    <section aria-label="audit-logs" className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">Security Audit Trail</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Immutable system audit logs tracking authentication, document indexing, AI assistant queries, dataset uploads, and RBAC changes.
+          <h1 className="text-2xl font-extrabold tracking-tight text-white">
+            Security Audit Trail
+          </h1>
+          <p className="mt-0.5 text-xs text-slate-400">
+            Immutable system audit logs tracking authentication, document
+            indexing, AI assistant queries, dataset uploads, and RBAC changes.
           </p>
         </div>
 
         {/* Action Filter */}
         <div className="flex items-center gap-2">
-          <Filter className="w-3.5 h-3.5 text-slate-500" />
-          <select
+          <Filter className="size-3.5 shrink-0 text-slate-500" />
+          <SelectGroup
+            id="filter-logs"
             value={filterAction}
             onChange={(e) => setFilterAction(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
-          >
-            <option value="ALL">All Event Types</option>
-            <option value="USER_LOGIN">USER_LOGIN</option>
-            <option value="DOCUMENT_UPLOADED">DOCUMENT_UPLOADED</option>
-            <option value="DATASET_UPLOADED">DATASET_UPLOADED</option>
-            <option value="AI_QUESTION_ASKED">AI_QUESTION_ASKED</option>
-            <option value="REPORT_GENERATED">REPORT_GENERATED</option>
-            <option value="TEAM_ROLE_CHANGED">TEAM_ROLE_CHANGED</option>
-          </select>
+            options={events}
+            size="sm"
+          />
         </div>
-      </div>
+      </header>
 
       {/* Audit Log Table */}
-      <div className="p-5 rounded-2xl bg-[#0f172a]/90 border border-slate-800 space-y-4 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left text-slate-300">
-            <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase tracking-wider">
-              <tr>
-                <th className="p-3 rounded-l-lg">Timestamp</th>
-                <th className="p-3">User Email</th>
-                <th className="p-3">Action Event</th>
-                <th className="p-3">Resource Type</th>
-                <th className="p-3 rounded-r-lg">Metadata Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/80">
-              {filteredLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="p-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
-                  </td>
-                  <td className="p-3 font-semibold text-slate-200 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-teal-400" />
-                    {log.userEmail}
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-2 py-0.5 rounded border text-[10px] font-bold ${getActionBadgeColor(log.action)}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="p-3 font-mono text-slate-400">{log.resourceType}</td>
-                  <td className="p-3 text-slate-300 max-w-xs truncate font-mono text-[11px]">
-                    {JSON.stringify(log.metadata || {})}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredLogs.length === 0 && (
-          <div className="py-12 text-center text-xs text-slate-500">
-            No audit log records match the selected action filter.
+      <section className="space-y-4 rounded-2xl border border-slate-800 bg-[#0f172a]/90 p-5 shadow-sm">
+        {loading && filteredLogs.length === 0 ? (
+          <div className="flex items-center gap-1 text-xs text-teal-400">
+            <Loader className="size-4 shrink-0 animate-spin" />
+            <span>Loading audit logs...</span>
           </div>
+        ) : filteredLogs.length === 0 ? (
+          <p className="py-12 text-center text-xs text-slate-500">
+            No audit log records match the selected action filter.
+          </p>
+        ) : (
+          <main className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-900 text-[10px] tracking-wider text-slate-400 uppercase">
+                <tr>
+                  <th className="rounded-l-lg p-3">Timestamp</th>
+                  <th className="p-3 text-center">User Email</th>
+                  <th className="p-3 text-center">Action Event</th>
+                  <th className="p-3 text-center">Resource Type</th>
+                  <th className="rounded-r-lg p-3 text-right">
+                    Metadata Details
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/80 border-t border-slate-800">
+                {filteredLogs.map((log) => (
+                  <tr
+                    key={log.id}
+                    className="transition-300 hover:bg-slate-900/40"
+                  >
+                    <td className="p-3 font-mono text-[11px] whitespace-nowrap text-slate-400">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </td>
+                    <td className="flex items-center justify-center gap-1.5 p-3 text-center font-semibold text-slate-200">
+                      <User className="size-3.5 shrink-0 text-teal-400" />
+                      {log.userEmail}
+                    </td>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`rounded border px-2 py-0.5 text-[10px] font-bold ${getActionBadgeColor(log.action)}`}
+                      >
+                        {log.action.replaceAll("_", " ")}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center font-mono text-slate-400">
+                      {log.resourceType.replaceAll("_", " ")}
+                    </td>
+                    <td className="max-w-xs truncate p-3 text-right font-mono text-[11px] text-slate-300">
+                      {JSON.stringify(log.metadata || {})}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </main>
         )}
-      </div>
-    </div>
+      </section>
+    </section>
   );
 }
+
+const events = [
+  { name: "All Event Types", value: "ALL" },
+  { name: "USER_LOGIN", value: "USER_LOGIN" },
+  { name: "DOCUMENT_UPLOADED", value: "DOCUMENT_UPLOADED" },
+  { name: "DATASET_UPLOADED", value: "DATASET_UPLOADED" },
+  { name: "AI_QUESTION_ASKED", value: "AI_QUESTION_ASKED" },
+  { name: "REPORT_GENERATED", value: "REPORT_GENERATED" },
+  { name: "TEAM_ROLE_CHANGED", value: "TEAM_ROLE_CHANGED" },
+];
